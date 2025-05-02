@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API Documentation - GEBCO Depth Data Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        h1, h2 {
+            color: #004080;
+        }
+        code {
+            background-color: #eee;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .example {
+            background-color: #eef2f7;
+            padding: 10px 15px;
+            border-left: 4px solid #4a90e2;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GEBCO Depth Data API</h1>
+    <p>This API allows users to query bathymetric depth data from the GEBCO_2024 dataset for a specified geographic region. You can request a NetCDF file containing depth values and use the service in your own applications or research tools.</p>
+
+    <h2>Base URL</h2>
+    <p><code>https://gebcoapi-91108147194.us-central1.run.app</code></p>
+
+    <h2>Endpoint</h2>
+    <p><strong><code>GET /area_depths_netcdf</code></strong></p>
+
+    <h2>Query Parameters</h2>
+    <ul>
+        <li><code>min_lat</code> (float): Minimum latitude of the area</li>
+        <li><code>max_lat</code> (float): Maximum latitude of the area</li>
+        <li><code>min_lon</code> (float): Minimum longitude of the area</li>
+        <li><code>max_lon</code> (float): Maximum longitude of the area</li>
+        <li><code>step</code> (float, optional, default = 0.1): Grid resolution in degrees</li>
+        <li><code>api_key</code> (string, required if authentication is enabled)</li>
+    </ul>
+
+    <h2>Response</h2>
+    <p>The endpoint returns a downloadable NetCDF (.nc) file containing a subset of the GEBCO depth data for the specified region.</p>
+
+    <h2>Example Request</h2>
+    <div class="example">
+        <strong>GET:</strong><br>
+        <code>https://gebcoapi-91108147194.us-central1.run.app/area_depths_netcdf?min_lat=30&max_lat=35&min_lon=50&max_lon=55&step=0.1</code>
+    </div>
+
+    <h2>Features</h2>
+    <ul>
+        <li>Access depth data for any region worldwide</li>
+        <li>Download results as NetCDF for analysis</li>
+        <li>Simple RESTful API for integration</li>
+        <li>Secure access with API keys (if enabled)</li>
+    </ul>
+
+    <h2>Coming Soon</h2>
+    <ul>
+        <li>User login and API key management</li>
+        <li>Interactive map-based region selection</li>
+        <li>Support for different data formats (GeoTIFF, CSV)</li>
+    </ul>
+
+    <footer style="margin-top: 40px;">
+        <hr>
+        <p><strong>Contact:</strong> Kumars Mahmoodi<br>
+        <strong>Email:</strong> kumars.mahmoodi@abo.fi<br>
+        <strong>Affiliation:</strong> Åbo Akademi University</p>
+    </footer>
+
+</body>
+</html>

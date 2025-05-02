@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MATLAB API Examples - GEBCO Depth Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fb;
+            margin: 40px;
+            color: #333;
+        }
+        h1, h2 {
+            color: #003366;
+        }
+        pre {
+            background-color: #f0f0f0;
+            border-left: 4px solid #007acc;
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        code {
+            font-family: Consolas, Monaco, monospace;
+        }
+        footer {
+            margin-top: 40px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>MATLAB Examples for Accessing GEBCO API</h1>
+    <p>This page provides MATLAB examples that demonstrate how to retrieve bathymetry (water depth) data from the GEBCO API.</p>
+
+    <h2>Example 1: Get Elevation at a Single Point</h2>
+    <pre><code>% Get elevation of a single point
+% Author: Kumars Mahmoodi
+
+% Define latitude and longitude
+lat = 35.5; 
+lon = 23.1;
+
+% Construct the API URL with query parameters
+url = sprintf('https://gebcoapi-91108147194.us-central1.run.app/depth?lat=%f&lon=%f', lat, lon);
+
+% Send GET request
+response = webread(url);
+
+% Display result
+disp(['Depth at (', num2str(lat), ', ', num2str(lon), '): ', num2str(response.depth_meters), ' meters']);
+</code></pre>
+
+    <h2>Example 2: Get Batch Elevation for Multiple Locations</h2>
+    <pre><code>% Get batch elevation of different locations
+% Define the API endpoint and headers
+apiUrl = 'https://gebcoapi-91108147194.us-central1.run.app/batch_depths';
+options = weboptions('MediaType', 'application/json', ...
+                     'HeaderFields', {'accept', 'application/json'; ...
+                                      'Content-Type', 'application/json'});
+
+% Define the request data
+data = [
+    struct('lat', 0.0, 'lon', 0.0), ...
+    struct('lat', 35.5, 'lon', 23.1), ...
+    struct('lat', -12.3, 'lon', 45.8)
+];
+
+% Convert the data to JSON format
+jsonData = jsonencode(data);
+
+% Send the POST request
+response = webwrite(apiUrl, jsonData, options);
+
+% Display the raw response
+disp('API Response:');
+disp(response);
+
+% Process and show results
+fprintf('\nProcessed Results:\n');
+for i = 1:numel(response)
+    fprintf('Location %d:\n', i);
+    fprintf('  Latitude: %.1f\n', response(i).latitude);
+    fprintf('  Longitude: %.1f\n', response(i).longitude);
+    fprintf('  Depth (meters): %d\n', response(i).depth_meters);
+end
+</code></pre>
+
+    <h2>Example 3: Download Elevation Data for a Specific Area</h2>
+    <pre><code>% Download elevation data for a specific area
+
+% User-defined parameters
+min_lat = 10; % Set minimum latitude
+max_lat = 20; % Set maximum latitude
+min_lon = 30; % Set minimum longitude
+max_lon = 40; % Set maximum longitude
+step = 0.5;   % Set step size
+
+% Construct the request URL
+url = sprintf('https://gebcoapi-91108147194.us-central1.run.app/area_depths_netcdf?min_lat=%f&max_lat=%f&min_lon=%f&max_lon=%f&step=%f', ...
+              min_lat, max_lat, min_lon, max_lon, step);
+
+% Define the output filename
+output_filename = 'output.nc';
+
+% Use websave to download the .nc file
+websave(output_filename, url);
+
+fprintf('File saved as %s\n', output_filename);
+
+ncinfo('output.nc')
+</code></pre>
+
+    <footer>
+        <p><strong>Author:</strong> Kumars Mahmoodi | <strong>Email:</strong> kumars.mahmoodi@abo.fi</p>
+        <p><strong>Website:</strong> <a href="https://gebcoapi-91108147194.us-central1.run.app">GEBCO API Portal</a></p>
+    </footer>
+
+</body>
+</html>

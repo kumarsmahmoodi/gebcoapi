@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GEBCO Depth Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f3;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row;
+        }
+        .sidebar {
+            width: 25%;
+            background-color: #ffffff;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #ddd;
+        }
+        .main {
+            width: 75%;
+            padding: 20px;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #history, #csvResults {
+            list-style-type: none;
+            padding: 0;
+        }
+        #history li, #csvResults li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        button {
+            margin-top: 10px;
+        }
+
+            .menu {
+        background-color: #0078d4;
+        padding: 10px;
+        text-align: center;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        left: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .menu a {
+        color: white;
+        margin: 0 15px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .menu a:hover {
+        text-decoration: underline;
+    }
+
+    .main {
+        margin-top: 60px; /* Ensure content does not overlap with the menu */
+    }
+
+    </style>
+</head>
+<body>
+
+    <div class="menu">
+    <a href="/static/about.html" target="_blank">About</a>
+    <a href="#ApiDocs" onclick="redirectToAPIDocs()">API Docs</a>
+    <a href="/static/example.html" target="_blank">Examples</a>
+</div>
+
+<div class="card" id="aboutSection" style="display: none;">
+    <h3>About</h3>
+    <p><strong>Name:</strong> Kumars Mahmoodi</p>
+    <p><strong>Affiliation:</strong> Researcher & Developer</p>
+    <p><strong>Email:</strong> <a href="mailto:kumarsmahmoodi@yahoo.com">kumarsmahmoodi@yahoo.com</a></p>
+    <p><strong>Pages:</strong></p>
+    <ul>
+        <li><a href="https://gebcoapi-91108147194.us-central1.run.app/docs" target="_blank">GEBCO API Documentation</a></li>
+        <!-- Add more pages as needed -->
+    </ul>
+</div>
+
+<div class="sidebar">
+    <h2>History</h2>
+    <ul id="history"></ul>
+    <button onclick="downloadHistory()">Download History as CSV</button>
+</div>
+
+<div class="main">
+    <h1>GEBCO Depth Finder 🌊</h1>
+
+    <div id="map"></div>
+
+    <div class="card">
+        <h3>Find Single Depth</h3>
+        <label for="latitude">Latitude:</label>
+        <input type="number" step="any" id="latitude">
+        <label for="longitude">Longitude:</label>
+        <input type="number" step="any" id="longitude">
+        <button onclick="findDepth()">Find Depth</button>
+        <p id="result"></p>
+    </div>
+
+    <div class="card">
+        <h3>Upload CSV</h3>
+        <input type="file" id="csvFile" accept=".csv">
+        <button onclick="uploadCSV()">Upload and Fetch Depths</button>
+        <ul id="csvResults"></ul>
+    </div>
+
+<div class="card">
+  <h3>Define Area by Coordinates</h3>
+<div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center;">
+  <label for="minLat">Min Latitude:</label>
+  <input type="number" step="any" id="minLat" required style="width: 150px;">
+
+  <label for="maxLat">Max Latitude:</label>
+  <input type="number" step="any" id="maxLat" required style="width: 150px;">
+
+  <label for="minLon">Min Longitude:</label>
+  <input type="number" step="any" id="minLon" required style="width: 150px;">
+
+  <label for="maxLon">Max Longitude:</label>
+  <input type="number" step="any" id="maxLon" required style="width: 150px;">
+
+  <label for="step">Step Size (deg):</label>
+  <input type="number" step="any" id="step" value="0.1" required style="width: 150px;">
+</div>
+  <br>
+  <button onclick="downloadArea()">Download Depths as NetCDF</button>
+</div>
+
+    <div class="card">
+        <h3>Depth Histogram</h3>
+        <canvas id="depthChart" width="400" height="200"></canvas>
+    </div>
+
+    <footer>
+        Designed by: Kumars Mahmoodi
+    </footer>
+</div>
+
+<script>
+    // Create the map
+    const map = L.map('map').setView([0, 0], 2);
+
+    // Add map tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Store depths for histogram and history
+    const depthData = [];
+    const historyData = [];
+
+    // Map click event (multi-point enabled!)
+    map.on('click', async function(e) {
+        const lat = e.latlng.lat.toFixed(5);
+        const lon = e.latlng.lng.toFixed(5);
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lon;
+        
+        const response = await fetch(`/depth?lat=${lat}&lon=${lon}`);
+        const data = await response.json();
+        
+        if (data.depth_meters !== undefined) {
+            addToHistory(lat, lon, data.depth_meters);
+            addToDepths(data.depth_meters);
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    });
+
+    async function findDepth() {
+        const lat = document.getElementById('latitude').value;
+        const lon = document.getElementById('longitude').value;
+
+        const response = await fetch(`/depth?lat=${lat}&lon=${lon}`);
+        const data = await response.json();
+
+        const resultElement = document.getElementById('result');
+        if (data.depth_meters !== undefined) {
+            resultElement.innerText = `Depth: ${data.depth_meters.toFixed(2)} meters`;
+            addToHistory(lat, lon, data.depth_meters);
+            addToDepths(data.depth_meters);
+        } else {
+            resultElement.innerText = `Error: ${data.error}`;
+        }
+    }
+
+    function addToHistory(lat, lon, depth) {
+        const history = document.getElementById('history');
+        const item = document.createElement('li');
+        item.innerText = `Lat: ${lat}, Lon: ${lon} → ${depth.toFixed(2)} m`;
+        history.prepend(item);
+
+        historyData.push({lat, lon, depth});
+    }
+
+    function addToDepths(depth) {
+        depthData.push(depth);
+        updateChart();
+    }
+
+    function uploadCSV() {
+        const fileInput = document.getElementById('csvFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Please select a CSV file.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async function(event) {
+            const text = event.target.result;
+            const lines = text.split('\n');
+            const results = document.getElementById('csvResults');
+            results.innerHTML = '';
+
+            for (let line of lines) {
+                const [lat, lon] = line.split(',').map(x => parseFloat(x.trim()));
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    const response = await fetch(`/depth?lat=${lat}&lon=${lon}`);
+                    const data = await response.json();
+                    const item = document.createElement('li');
+                    if (data.depth_meters !== undefined) {
+                        item.innerText = `Lat: ${lat}, Lon: ${lon} → Depth: ${data.depth_meters.toFixed(2)} meters`;
+                        addToHistory(lat, lon, data.depth_meters);
+                        addToDepths(data.depth_meters);
+                    } else {
+                        item.innerText = `Lat: ${lat}, Lon: ${lon} → Error`;
+                    }
+                    results.appendChild(item);
+                }
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function downloadHistory() {
+        if (historyData.length === 0) {
+            alert('No history data to download.');
+            return;
+        }
+
+        let csvContent = "Latitude,Longitude,Depth\n";
+        historyData.forEach(item => {
+            csvContent += `${item.lat},${item.lon},${item.depth}\n`;
+        });
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "depth_history.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Setup Chart.js for histogram
+    const ctx = document.getElementById('depthChart').getContext('2d');
+    const depthChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Depth (m)',
+                data: [],
+                backgroundColor: 'rgba(0, 123, 255, 0.7)'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    function updateChart() {
+        depthChart.data.labels = depthData.map((_, i) => i + 1);
+        depthChart.data.datasets[0].data = depthData;
+        depthChart.update();
+    }
+ function downloadArea() {
+    const minLat = parseFloat(document.getElementById("minLat").value);
+    const maxLat = parseFloat(document.getElementById("maxLat").value);
+    const minLon = parseFloat(document.getElementById("minLon").value);
+    const maxLon = parseFloat(document.getElementById("maxLon").value);
+    const step = parseFloat(document.getElementById("step").value);
+    const url = `/area_depths_netcdf?min_lat=${minLat}&max_lat=${maxLat}&min_lon=${minLon}&max_lon=${maxLon}&step=${step}`;
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error("Failed to fetch NetCDF file.");
+            return response.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "area_depths.nc";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        })
+        .catch(error => alert("Error: " + error.message));
+}
+
+    function showAbout() {
+        document.getElementById("aboutSection").style.display = "block";
+        document.getElementById("signupSection").style.display = "none";
+        document.getElementById("signinSection").style.display = "none";
+    }
+
+    function showSignup() {
+        document.getElementById("aboutSection").style.display = "none";
+        document.getElementById("signupSection").style.display = "block";
+        document.getElementById("signinSection").style.display = "none";
+    }
+
+    function showSignin() {
+        document.getElementById("aboutSection").style.display = "none";
+        document.getElementById("signupSection").style.display = "none";
+        document.getElementById("signinSection").style.display = "block";
+    }
+
+    function redirectToAPIDocs() {
+        window.open('https://gebcoapi-91108147194.us-central1.run.app/docs', '_blank');
+    }
+
+
+
+</script>
+
+</body>
+</html>

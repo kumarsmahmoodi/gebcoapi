@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+xarray
+numpy
+pandas
+netCDF4
+python-multipart
